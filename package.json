@@ -1,0 +1,11 @@
+{
+  "name": "Lovable",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace server"
+  }
+}
