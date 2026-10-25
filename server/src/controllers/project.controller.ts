@@ -1,19 +1,23 @@
 import { Request, Response } from "express";
-import { getAllProjectsService } from "../services/project.service";
+import {
+  createProjectService,
+  getAllProjectsService,
+  getProjectByIdService,
+} from "../services/project.service";
+import { sendSuccess } from "../utils/api-response";
 
 export async function getAllProjectsController(_req: Request, res: Response) {
-  try {
-    const projects = await getAllProjectsService();
-    res.status(200).json({
-      success: true,
-      data: projects,
-    });
-  } catch (error) {
-    console.error("Error fetching projects:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch projects",
-      error: error instanceof Error ? error.message : "Internal server error",
-    });
-  }
+  const projects = await getAllProjectsService();
+  return sendSuccess(res, projects);
+}
+
+export async function getProjectByIdController(req: Request, res: Response) {
+  const { id } = req.params as { id: string };
+  const project = await getProjectByIdService(id);
+  return sendSuccess(res, project);
+}
+
+export async function createProjectController(req: Request, res: Response) {
+  const project = await createProjectService(req.body);
+  return sendSuccess(res, project, 201, "Project created successfully");
 }

@@ -19,4 +19,6 @@ if (env.NODE_ENV !== "production") {
 }
 
 export { PrismaClient };
+export * from "../../generated/prisma/enums";
 export default prisma;
+
