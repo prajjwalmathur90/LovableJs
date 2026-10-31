@@ -1,7 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
-
+import { exec, type ExecException } from "child_process";
 import { sandboxRoot } from "../config/constants";
+import { promisify } from "util";
 
 /*
 |--------------------------------------------------------------------------
@@ -648,4 +649,173 @@ export async function readSandboxTree(
 
   // Return the collected files as a FileCollection.
   return files;
+}
+
+/*
+|--------------------------------------------------------------------------
+| 9. EXECUTE SHELL COMMANDS IN A SANDBOX
+|--------------------------------------------------------------------------
+*/
+
+// Promisified version of Node's child_process.exec() for async/await usage.
+const execAsync = promisify(exec);
+
+// Maximum execution time allowed for a command before terminating it.
+// 60,000 milliseconds = 1 minute.
+const SANDBOX_COMMAND_TIMEOUT_MS = 60_000;
+
+// Maximum amount of output data (in bytes) allowed on stdout or stderr.
+// 1024 * 1024 = 1,048,576 bytes = 1 MiB.
+const SANDBOX_COMMAND_MAX_BUFFER = 1024 * 1024; // 1MB
+
+/**
+ * Formats standard output and standard error from a successful execution.
+ *
+ * PURPOSE:
+ * Provide a clean, human-readable summary of command output.
+ * If stdout has text, it is returned; otherwise stderr is used.
+ * If both streams are empty, a default placeholder is returned.
+ *
+ * EXAMPLE:
+ *
+ * formatCommandSuccess("Build complete\n", "");
+ * // Returns: "Build complete"
+ */
+function formatCommandSuccess(stdout: string, stderr: string): string {
+  // Trim leading and trailing whitespace from both streams.
+  const trimmedStdout = stdout.trim();
+  const trimmedStderr = stderr.trim();
+
+  // Return standard output if present.
+  if (trimmedStdout) return trimmedStdout;
+
+  // Otherwise, return standard error if present.
+  if (trimmedStderr) return trimmedStderr;
+
+  // Fallback when the command produced no output.
+  return "no output";
+}
+
+/**
+ * Formats an error message along with captured stdout and stderr streams.
+ *
+ * PURPOSE:
+ * Ensure callers receive complete diagnostics when a command fails,
+ * including the core error description and any partial output emitted
+ * before termination.
+ *
+ * EXAMPLE:
+ *
+ * formatCommandFailure("Command failed", "Building...", "Syntax error");
+ * // Returns:
+ * // "Error: Command failed\n\nstdout:\nBuilding...\n\nstderr:\nSyntax error"
+ */
+function formatCommandFailure(
+  message: string,
+  stdout = "",
+  stderr = "",
+): string {
+  // Start with the main error explanation.
+  const parts = [`Error: ${message}`];
+
+  // Trim whitespace from output streams.
+  const trimmedStdout = stdout.trim();
+  const trimmedStderr = stderr.trim();
+
+  // Append stdout details if present.
+  if (trimmedStdout) parts.push(`stdout:\n${trimmedStdout}`);
+
+  // Append stderr details if present.
+  if (trimmedStderr) parts.push(`stderr:\n${trimmedStderr}`);
+
+  // Combine error and outputs separated by double newlines.
+  return parts.join("\n\n");
+}
+
+/**
+ * Type guard that safely extracts an ExecException from an unknown error.
+ *
+ * PURPOSE:
+ * Differentiate child_process execution errors (which carry process-specific
+ * stdout and stderr streams) from standard JavaScript runtime exceptions.
+ */
+function asExecException(error: unknown): ExecException | null {
+  // Verify that the error is an Error instance.
+  if (!(error instanceof Error)) return null;
+
+  // Check whether the error object contains stdout or stderr properties.
+  if (!("stdout" in error || "stderr" in error)) return null;
+
+  // Return the error cast to ExecException.
+  return error as ExecException;
+}
+
+/**
+ * Executes a shell command inside the root directory of a sandbox.
+ *
+ * PURPOSE:
+ * Run arbitrary terminal commands (such as dependency installation,
+ * build commands, or scripts) within the target sandbox directory,
+ * capturing and formatting stdout, stderr, and failure details.
+ *
+ * EXAMPLE:
+ *
+ * const output = await runSandboxCommand("demo", "ls -la");
+ *
+ * Possible success output:
+ *   "total 8\ndrwxr-xr-x 2 user group 4096 README.md"
+ *
+ * Possible failure output:
+ *   "Error: Command failed: non-existent-command\n\nstderr:\ncommand not found"
+ *
+ * RETURNS:
+ * A Promise resolving to a formatted string containing either the command's
+ * output or diagnostic error details upon failure.
+ *
+ * NOTE:
+ * Unlike readSandboxFiles(), this function calls ensureSandbox(), creating
+ * the sandbox directory if it does not already exist.
+ * Execution is bounded by timeout (60s) and buffer size limits (1 MiB).
+ */
+export async function runSandboxCommand(
+  sandboxId: string,
+  command: string,
+): Promise<string> {
+  try {
+    // Validate the sandbox ID and ensure the directory exists on disk.
+    // The command will be executed with this directory as its working directory (cwd).
+    const sandboxDir = await ensureSandbox(sandboxId);
+
+    // Run the command asynchronously within the sandbox directory.
+    //
+    // cwd: sets the current working directory to the sandbox path.
+    // timeout: terminates the process if it exceeds SANDBOX_COMMAND_TIMEOUT_MS.
+    // maxBuffer: limits maximum stdout/stderr buffer to prevent memory exhaustion.
+    const { stdout, stderr } = await execAsync(command, {
+      cwd: sandboxDir,
+      timeout: SANDBOX_COMMAND_TIMEOUT_MS,
+      maxBuffer: SANDBOX_COMMAND_MAX_BUFFER,
+    });
+
+    // Format and return successful output.
+    return formatCommandSuccess(String(stdout), String(stderr));
+  } catch (error) {
+    // Attempt to treat the caught exception as an ExecException
+    // to access command-specific stdout and stderr streams.
+    const execError = asExecException(error);
+
+    // If the failure originated from child_process.exec, include streams in diagnostics.
+    if (execError) {
+      return formatCommandFailure(
+        execError.message,
+        String(execError.stdout ?? ""),
+        String(execError.stderr ?? ""),
+      );
+    }
+
+    // Otherwise, format generic or unexpected errors.
+    return formatCommandFailure(
+      error instanceof Error ? error.message : String(error),
+    );
+  }
 }
