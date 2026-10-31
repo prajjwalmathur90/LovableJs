@@ -10,6 +10,10 @@ export const env = {
   DATABASE_URL:
     process.env.DATABASE_URL ||
     "postgresql://vibe:vibe@localhost:5432/lovablejs",
+  // Temporal configuration defaults for local development.
+  TEMPORAL_ADDRESS: process.env.TEMPORAL_ADDRESS || "localhost:7233",
+  TEMPORAL_NAMESPACE: process.env.TEMPORAL_NAMESPACE || "default",
+  TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE || "lovablejs-task-queue",
 };
 
 export default env;
