@@ -1,8 +1,9 @@
 import dotenv from "dotenv";
 import path from "path";
 
-// Load .env relative to server root
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+// Load root .env first, then server-specific .env
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env"), override: true });
 
 export const env = {
   API_PORT: Number(process.env.API_PORT) || 5000,

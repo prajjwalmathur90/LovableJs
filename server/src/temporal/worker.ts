@@ -1,13 +1,24 @@
 import { NativeConnection, Worker } from "@temporalio/worker";
 import { env } from "../config/env";
+import { withRetry } from "../utils/retry";
 import * as activities from "./activities";
 
 const workflowsPath = `${__dirname}/workflows`;
 
+export async function connect(
+  maxAttempts = 5,
+  initialDelayMs = 1000,
+  backoffFactor = 2,
+): Promise<NativeConnection> {
+  return withRetry(
+    `Connecting to Temporal at ${env.TEMPORAL_ADDRESS}`,
+    () => NativeConnection.connect({ address: env.TEMPORAL_ADDRESS }),
+    { maxAttempts, initialDelayMs, backoffFactor },
+  );
+}
+
 async function run() {
-  const connection = await NativeConnection.connect({
-    address: env.TEMPORAL_ADDRESS,
-  });
+  const connection = await connect();
 
   const worker = await Worker.create({
     connection,

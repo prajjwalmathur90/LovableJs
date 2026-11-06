@@ -1,1 +1,1 @@
-export const workflows = {};
+export * from "./ping.workflow";
