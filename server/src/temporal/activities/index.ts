@@ -1,2 +1,2 @@
-export { createSandbox } from "./create-sandbox.activity";
+export * from "./sandbox.activites";
 export { saveResult } from "./save-result.activity";

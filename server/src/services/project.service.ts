@@ -5,9 +5,9 @@ import {
   getAllProjects,
   getProjectById,
 } from "../repositories/project.repository";
-import { badRequest, notFound } from "../utils/api-error";
-import { FileCollection, writeSandboxFiles } from "../lib/sandbox";
-import { saveResult } from "../repositories/message.repository";
+import { notFound } from "../utils/api-error";
+import { FileCollection } from "../lib/sandbox";
+import { startCodeAgentWorkflow } from "../temporal/client";
 
 const HELLO_WORLD_FILES: FileCollection = {
   "src/App.tsx": `export default function App() {
@@ -34,21 +34,13 @@ export async function getProjectByIdService(id: string) {
 
 export async function createProjectService(data: CreateProjectDto) {
   const content = data.content || data.message;
-  if (!content) {
-    throw badRequest("Message content is required");
-  }
 
   const name = data.name || generateSlug(3, { format: "kebab" });
-  const project = await createProject(name, content);
+  const project = await createProject(name, content!);
 
-  await writeSandboxFiles(project.id, HELLO_WORLD_FILES);
-  await saveResult({
+  await startCodeAgentWorkflow({
     projectId: project.id,
-    content: "Here is a hello world sandbox",
-    sandboxUrl: `/api/preview/${project.id}`,
-    title: "Hello World",
-    files: HELLO_WORLD_FILES,
-    isError: false,
+    prompt: content!,
   });
 
   return project;
