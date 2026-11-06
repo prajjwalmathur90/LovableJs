@@ -2,8 +2,12 @@ import { Client, Connection } from "@temporalio/client";
 import { env } from "../config/env";
 import { withRetry } from "../utils/retry";
 import { pingWorkflow } from "./workflows/ping.workflow";
+import {
+  codeAgentWorkflow,
+  type CodeAgentInput,
+} from "./workflows/code-agent.workflow";
 
-async function connect(
+export async function connect(
   maxAttempts = 5,
   initialDelayMs = 1000,
   backoffFactor = 2,
@@ -40,3 +44,31 @@ export async function startPing(): Promise<void> {
     await client.connection.close();
   }
 }
+
+export async function createCodeAgentWorkflow(input: CodeAgentInput) {
+  const client = await connect();
+
+  try {
+    const workflowId = `code-agent-${input.projectId}-${Date.now()}`;
+
+    const handle = await client.workflow.start(codeAgentWorkflow, {
+      taskQueue: env.TEMPORAL_TASK_QUEUE,
+      workflowId,
+      args: [input],
+    });
+
+    console.log(
+      `Started codeAgentWorkflow with workflowId: ${handle.workflowId}`,
+    );
+
+    const result = await handle.result();
+
+    console.log("codeAgentWorkflow result:", result);
+    return result;
+  } finally {
+    await client.connection.close();
+  }
+}
+
+export const startCodeAgentWorkflow = createCodeAgentWorkflow;
+
