@@ -71,14 +71,14 @@ export function getChatModel(
   modelName?: string,
   reasoning: boolean = false,
 ): BaseChatModel {
-  if (env.OPENAI_API_KEY) {
+  if (env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim() !== "") {
     return openaiChatModel(
       modelName || env.OPENAI_MODEL || "gpt-4o",
       reasoning,
     );
   }
 
-  if (env.GEMINI_API_KEY) {
+  if (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim() !== "") {
     return geminiChatModel(
       modelName || env.GEMINI_MODEL || "gemini-2.5-flash",
       reasoning,

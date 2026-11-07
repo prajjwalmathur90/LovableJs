@@ -1,19 +1,11 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { getChatModel, hasllm } from "./model";
+import { getChatModel } from "./model";
 
 export async function runPlainPrompt(
   systemPrompt: string,
   userPrompt: string,
-  options: {
-    modelName?: string;
-    reasoning?: boolean;
-  } = {},
-): Promise<string | null> {
-  if (!hasllm()) {
-    return null;
-  }
-
-  const model = getChatModel(options?.modelName, options?.reasoning);
+): Promise<string> {
+  const model = getChatModel();
 
   const response = await model.invoke([
     new SystemMessage(systemPrompt),
@@ -21,11 +13,8 @@ export async function runPlainPrompt(
   ]);
 
   if (typeof response?.content === "string") {
-    const trimmed = response.content.trim();
-    if (trimmed.length > 0) {
-      return trimmed;
-    }
+    return response.content.trim();
   }
 
-  return null;
+  return "";
 }

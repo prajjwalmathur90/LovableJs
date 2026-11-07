@@ -27,9 +27,7 @@ export async function readSandboxFiles(
   return await readSandboxFilesLib(projectId, filePaths);
 }
 
-export async function readSandboxTree(
-  projectId: string,
-): Promise<FileCollection> {
+export async function loadSandBox(projectId: string): Promise<FileCollection> {
   return await readSandboxTreeLib(projectId);
 }
 
@@ -41,4 +39,3 @@ export async function runSandboxCommand(
 }
 
 export type { FileCollection, FileEntry };
-
