@@ -43,6 +43,8 @@ export const env = {
     process.env.TEMPORAL_TASK_QUEUE || "lovablejs-task-queue",
   GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
   OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+  OPENAI_MODEL: process.env.OPENAI_MODEL || "gpt-4o",
   GEMINI_REASONING_EFFORT: resolveReasoningEffort(
     process.env.GEMINI_REASONING_EFFORT,
   ),

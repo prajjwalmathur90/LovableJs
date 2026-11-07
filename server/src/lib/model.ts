@@ -6,6 +6,15 @@ import { env } from "../config/env";
 const GEMINI_REASONING_PREFIXES = ["gemini-2.5", "gemini-3"];
 const OPENAI_REASONING_PREFIXES = ["o1", "o3", "o4"];
 
+export function hasllm(): boolean {
+  return Boolean(
+    (env.OPENAI_API_KEY && env.OPENAI_API_KEY.trim() !== "") ||
+    (env.GEMINI_API_KEY && env.GEMINI_API_KEY.trim() !== ""),
+  );
+}
+
+export const hasLLM = hasllm;
+
 export function isGeminiReasoningModel(modelName: string): boolean {
   const lower = modelName.trim().toLowerCase();
   return GEMINI_REASONING_PREFIXES.some((prefix) => lower.startsWith(prefix));
@@ -59,15 +68,21 @@ export function openaiChatModel(
 }
 
 export function getChatModel(
-  modelName: string,
-  reasoning: boolean,
+  modelName?: string,
+  reasoning: boolean = false,
 ): BaseChatModel {
   if (env.OPENAI_API_KEY) {
-    return openaiChatModel(modelName, reasoning);
+    return openaiChatModel(
+      modelName || env.OPENAI_MODEL || "gpt-4o",
+      reasoning,
+    );
   }
 
   if (env.GEMINI_API_KEY) {
-    return geminiChatModel(modelName, reasoning);
+    return geminiChatModel(
+      modelName || env.GEMINI_MODEL || "gemini-2.5-flash",
+      reasoning,
+    );
   }
 
   throw new Error(
