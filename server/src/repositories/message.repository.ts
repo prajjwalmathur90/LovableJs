@@ -6,6 +6,8 @@ import {
 } from "../../generated/prisma/client";
 import prisma from "../lib/prisma";
 import { FileCollection } from "../lib/sandbox";
+import { AgentChatMessage } from "../agents/types";
+import { formatPlanForAgent, parsePlanMessage } from "../lib/plan";
 
 export async function getMessagesByProjectId(projectId: string) {
   return await prisma.message.findMany({
@@ -19,6 +21,31 @@ export async function getMessagesByProjectId(projectId: string) {
       fragments: true,
     },
   });
+}
+
+function formatLoadedDbContent(content: string): string {
+  const todos = parsePlanMessage(content);
+  return todos ? formatPlanForAgent(todos) : content;
+}
+
+export async function loadMessages(
+  projectId: string,
+  limit = 5,
+): Promise<AgentChatMessage[]> {
+  const messages = await prisma.message.findMany({
+    where: {
+      projectId,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: limit,
+  });
+
+  return messages.reverse().map((message) => ({
+    role: message.role === MessageRole.USER ? "user" : "assistant",
+    content: formatLoadedDbContent(message.content),
+  }));
 }
 
 type CreateMessageInput = {
